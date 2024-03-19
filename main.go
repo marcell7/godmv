@@ -11,20 +11,12 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-
-	"github.com/twpayne/go-proj/v10"
 )
 
-type BBox struct {
-	minLat float64
-	maxLat float64
-	minLon float64
-	maxLon float64
-	// Transformed
-	tminX float64
-	tmaxX float64
-	tminY float64
-	tmaxY float64
+// Point with x and y coord
+type Pt struct {
+	x float64
+	y float64
 }
 
 // One task for each text file
@@ -122,43 +114,8 @@ func download(url string, folder string, file string) string {
 	return filepath
 }
 
-// Converts user provided coordinates to the ones in the files (don't know much about these coordinate systems, but we are allegedly using EPSG:3794)
-func getBBox(coords []string) BBox {
-	var bbox BBox
-	for i, boundry := range coords {
-		boundryf, err := strconv.ParseFloat(boundry, 64)
-		if err != nil {
-			panic(err)
-		}
-		switch i {
-		case 0:
-			bbox.minLat = boundryf
-		case 1:
-			bbox.maxLat = boundryf
-		case 2:
-			bbox.minLon = boundryf
-		case 3:
-			bbox.maxLon = boundryf
-		}
-	}
-	// Some conversion magic...Using Proj for this
-	pj, err := proj.NewCRSToCRS("EPSG:4326", "EPSG:3794", nil)
-	if err != nil {
-		panic(err)
-	}
-	maxCoords := proj.NewCoord(bbox.maxLat, bbox.minLon, 0, 0)
-	minCoords := proj.NewCoord(bbox.minLat, bbox.maxLon, 0, 0)
-	tMaxCoords, _ := pj.Forward(maxCoords)
-	tMinCoords, _ := pj.Forward(minCoords)
-	bbox.tminX = tMaxCoords.X()
-	bbox.tmaxY = tMaxCoords.Y()
-	bbox.tmaxX = tMinCoords.X()
-	bbox.tminY = tMinCoords.Y()
-	return bbox
-}
-
 // Parse txt file line by line and check if a line is in the provided bbox
-func parseCsv(id int, path string, bbox BBox) Result {
+func parseCsv(id int, path string, pt1 Pt, pt2 Pt) Result {
 	var nRows int32
 	var matchedRows []string
 	file, err := os.Open(path)
@@ -170,40 +127,53 @@ func parseCsv(id int, path string, bbox BBox) Result {
 	for scanner.Scan() {
 		x, _ := strconv.ParseFloat(strings.Split(scanner.Text(), " ")[0], 32)
 		y, _ := strconv.ParseFloat(strings.Split(scanner.Text(), " ")[1], 32)
-		if x >= bbox.tminX && x <= bbox.tmaxX && y >= bbox.tminY && y <= bbox.tmaxY {
+		if x >= pt1.x && x <= pt2.x && y >= pt2.y && y <= pt1.y {
 			matchedRows = append(matchedRows, scanner.Text())
 		}
 		nRows++
-
 	}
 	return Result{id: id, nRows: nRows, matchedRows: matchedRows}
 }
 
 // Worker that processes a task from a task channel and sends the result to results channel
-func worker(id int, bbox BBox, tasksChen <-chan Task, resultsChen chan<- Result) {
+func worker(id int, pt1 Pt, pt2 Pt, tasksChen <-chan Task, resultsChen chan<- Result) {
 	for task := range tasksChen {
-		result := parseCsv(id, task.file, bbox)
+		result := parseCsv(id, task.file, pt1, pt2)
 		resultsChen <- result
 	}
 }
 
 func main() {
 	// Parse user input
-	userbbox := flag.String("bbox", "", "Robne koordinate v obliki 'minLat,maxLat,minLon,maxLon'")
+	var res int
+	pt1raw := flag.String("pt1", "", "Zgornja leva točka območja")
+	pt2raw := flag.String("pt2", "", "Spodnja desna točka območja")
+	resRaw := flag.Int("res", 5, "Resolucija. Po defaultu so podatki na 5 (5m X 5m). Lahko se nastavi na: 50 (50m X 50m), 500 (500m X 500m), 5000 (5000m X 5000m)")
 	output := flag.String("output", "output.csv", "Izvožen csv")
 	shouldDownload := flag.Bool("download", false, "Prenesi DMV podatke? Nastavi kot false, če jih že imaš")
 	dataFolder := flag.String("data", "godmv_data", "Mapa, kjer so vse DMV .xyz datoteke")
 	flag.Parse()
-	if *userbbox == "" {
-		fmt.Println("bbox missing")
+
+	pt1xy := strings.Split(*pt1raw, " ")
+	pt2xy := strings.Split(*pt2raw, " ")
+	if !(len(pt1xy) == 2 && len(pt2xy) == 2) {
+		fmt.Println("invalid pt values")
 		return
 	}
-	coords := strings.Split(*userbbox, ";")
-	if len(coords) != 4 {
-		return
+	pt1x, _ := strconv.ParseFloat(pt1xy[0], 64)
+	pt1y, _ := strconv.ParseFloat(pt1xy[1], 64)
+	pt2x, _ := strconv.ParseFloat(pt2xy[0], 64)
+	pt2y, _ := strconv.ParseFloat(pt2xy[1], 64)
+	pt1 := Pt{x: pt1x, y: pt1y}
+	pt2 := Pt{x: pt2x, y: pt2y}
+
+	switch *resRaw {
+	case 5, 50, 500, 5000:
+		res = *resRaw / 5
+	default:
+		res = 1
 	}
-	// Get bbox
-	bbox := getBBox(coords)
+
 	if *shouldDownload {
 		// Download each file and unzip it
 		filesFolder := *dataFolder
@@ -226,7 +196,7 @@ func main() {
 	resultsChan := make(chan Result, len(files))
 	// Create workers to process tasks
 	for w := 1; w <= len(files); w++ {
-		go worker(w, bbox, tasksChan, resultsChan)
+		go worker(w, pt1, pt2, tasksChan, resultsChan)
 	}
 	// Create tasks that need to be processed
 	for idx, file := range files {
@@ -240,11 +210,15 @@ func main() {
 	// Collect and write all results
 	for i := 1; i <= len(files); i++ {
 		result := <-resultsChan
+		counter := 0
 		for _, row := range result.matchedRows {
-			writer.WriteString(row + "\n")
+			if counter%res == 0 {
+				writer.WriteString(row + "\n")
+				counter = 0
+			}
+			counter++
 		}
 		nRows = nRows + result.nRows
 	}
 	fmt.Printf("Processed rows: %d \n", nRows)
-
 }
