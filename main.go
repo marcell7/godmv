@@ -149,7 +149,7 @@ func main() {
 	pt1raw := flag.String("pt1", "", "Zgornja leva točka območja")
 	pt2raw := flag.String("pt2", "", "Spodnja desna točka območja")
 	resRaw := flag.Int("res", 5, "Resolucija. Po defaultu so podatki na 5 (5m X 5m). Lahko se nastavi na: 50 (50m X 50m), 500 (500m X 500m), 5000 (5000m X 5000m)")
-	output := flag.String("output", "output.csv", "Izvožen csv")
+	output := flag.String("output", "output.xyz", "Izvožena datoteka formata .xyz")
 	shouldDownload := flag.Bool("download", false, "Prenesi DMV podatke? Nastavi kot false, če jih že imaš")
 	dataFolder := flag.String("data", "godmv_data", "Mapa, kjer so vse DMV .xyz datoteke")
 	flag.Parse()
@@ -210,7 +210,7 @@ func main() {
 	// Collect and write all results
 	for i := 1; i <= len(files); i++ {
 		result := <-resultsChan
-		counter := 0
+		counter := 1
 		for _, row := range result.matchedRows {
 			if counter%res == 0 {
 				writer.WriteString(row + "\n")

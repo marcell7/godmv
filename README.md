@@ -7,7 +7,7 @@ Teh podatkov je precej. Razdeljeni so po >3000 tekstovnih datotekah. Vse datotek
 - Prvič ne veš, v kateri datoteki se podatki za ta del nahajajo
 - Drugič, teh podatkov je preveč, da bi delal na vseh naenkrat
 
-To je program, ki hitro obdela vse datoteke/podatke (na mojem PCju traja ~20s) in zgenerira eno csv datoteko, ki vsebuje podatke samo za izbrano območje. Poleg je možnost, da se vse podatke avtomatsko prenese iz GURSa.
+To je program, ki hitro obdela vse datoteke/podatke (na mojem PCju traja ~20s) in zgenerira eno eno .xyz datoteko, ki vsebuje podatke samo za izbrano območje. Poleg tega ima program tudi možnost avtomatskega prenesa vseh podatkov iz GURSa (to določimo z `--download=True`).
 
 Poženi:
 
@@ -45,19 +45,4 @@ Kaj lahko nastavljamo?
 
 ```bash
 ./godmv --help
-```
-
-```txt
--data string
-    Mapa, kjer so vse DMV .xyz datoteke (default "godmv_data")
--download
-    Prenesi DMV podatke? Nastavi kot false, če jih že imaš
--output string
-    Izvožen csv (default "output.csv")
--pt1 string
-    Zgornja leva točka območja
--pt2 string
-    Spodnja desna točka območja
--res int
-    Resolucija. Po defaultu so podatki na 5 (5m X 5m). Lahko se nastavi na: 50 (50m X 50m), 500 (500m X 500m), 5000 (5000m X 5000m) (default 5)
 ```
