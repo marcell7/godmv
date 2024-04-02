@@ -178,7 +178,6 @@ func main() {
 	default:
 		res = 1
 	}
-	fmt.Println(res)
 	if *shouldDownload {
 		// Download each file and unzip it
 		filesFolder := *dataFolder
