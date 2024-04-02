@@ -115,7 +115,7 @@ func download(url string, folder string, file string) string {
 }
 
 // Parse txt file line by line and check if a line is in the provided bbox
-func parseCsv(id int, path string, pt1 Pt, pt2 Pt) Result {
+func parseCsv(id int, path string, pt1 Pt, pt2 Pt, res int) Result {
 	var nRows int32
 	var matchedRows []string
 	file, err := os.Open(path)
@@ -124,21 +124,26 @@ func parseCsv(id int, path string, pt1 Pt, pt2 Pt) Result {
 	}
 	defer file.Close()
 	scanner := bufio.NewScanner(file)
+	counter := 1
 	for scanner.Scan() {
 		x, _ := strconv.ParseFloat(strings.Split(scanner.Text(), " ")[0], 32)
 		y, _ := strconv.ParseFloat(strings.Split(scanner.Text(), " ")[1], 32)
-		if x >= pt1.x && x <= pt2.x && y >= pt2.y && y <= pt1.y {
-			matchedRows = append(matchedRows, scanner.Text())
+		if counter%res == 0 {
+			counter = 0
+			if x >= pt1.x && x <= pt2.x && y >= pt2.y && y <= pt1.y {
+				matchedRows = append(matchedRows, scanner.Text())
+			}
 		}
+		counter++
 		nRows++
 	}
 	return Result{id: id, nRows: nRows, matchedRows: matchedRows}
 }
 
 // Worker that processes a task from a task channel and sends the result to results channel
-func worker(id int, pt1 Pt, pt2 Pt, tasksChen <-chan Task, resultsChen chan<- Result) {
+func worker(id int, pt1 Pt, pt2 Pt, tasksChen <-chan Task, resultsChen chan<- Result, res int) {
 	for task := range tasksChen {
-		result := parseCsv(id, task.file, pt1, pt2)
+		result := parseCsv(id, task.file, pt1, pt2, res)
 		resultsChen <- result
 	}
 }
@@ -173,7 +178,7 @@ func main() {
 	default:
 		res = 1
 	}
-
+	fmt.Println(res)
 	if *shouldDownload {
 		// Download each file and unzip it
 		filesFolder := *dataFolder
@@ -196,7 +201,7 @@ func main() {
 	resultsChan := make(chan Result, len(files))
 	// Create workers to process tasks
 	for w := 1; w <= len(files); w++ {
-		go worker(w, pt1, pt2, tasksChan, resultsChan)
+		go worker(w, pt1, pt2, tasksChan, resultsChan, res)
 	}
 	// Create tasks that need to be processed
 	for idx, file := range files {
@@ -210,13 +215,8 @@ func main() {
 	// Collect and write all results
 	for i := 1; i <= len(files); i++ {
 		result := <-resultsChan
-		counter := 1
 		for _, row := range result.matchedRows {
-			if counter%res == 0 {
-				writer.WriteString(row + "\n")
-				counter = 0
-			}
-			counter++
+			writer.WriteString(row + "\n")
 		}
 		nRows = nRows + result.nRows
 	}
