@@ -41,7 +41,13 @@ X--------------
               pt2
 ```
 
-Kaj lahko nastavljamo?
+Še 3D pogled znotraj Meshlab-a
+
+<img src="assets/3d.jpg" width="600">
+
+---
+
+Help?
 
 ```bash
 ./godmv --help
