@@ -44,6 +44,7 @@ X--------------
 Še 3D pogled znotraj Meshlab-a
 
 <img src="assets/3d.jpg" width="600">
+<img src="assets/3d_map.png" width="600">
 
 ---
 
