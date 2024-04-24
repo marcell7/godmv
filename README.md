@@ -7,7 +7,7 @@ Teh podatkov je precej. Razdeljeni so po >3000 tekstovnih datotekah. Vse datotek
 - Prvič ne veš, v kateri datoteki se podatki za ta del nahajajo
 - Drugič, teh podatkov je preveč, da bi delal na vseh naenkrat
 
-To je program, ki hitro obdela vse datoteke/podatke (na mojem PCju traja ~20s) in zgenerira eno eno .xyz datoteko, ki vsebuje podatke samo za izbrano območje. Poleg tega ima program tudi možnost avtomatskega prenesa vseh podatkov iz GURSa (to določimo z `--download=True`).
+To je program, ki hitro obdela vse datoteke/podatke (na mojem PCju traja ~20s) in zgenerira eno .xyz datoteko, ki vsebuje samo podatke za izbrano območje. Poleg tega ima program tudi možnost avtomatskega prenosa vseh podatkov iz GURSa (to določimo z `--download=True`).
 
 Poženi:
 
